@@ -1,4 +1,4 @@
-obj-m += rpi-cobalt.o ledblink.o
+obj-m += rpi-cobalt.o 
 
 all:
 	make -C $(HOME)/linux M=$(PWD) modules
