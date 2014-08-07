@@ -1,0 +1,12 @@
+#!/usr/bin/python
+
+import time
+import select 
+import os, sys
+usleep = lambda x: time.sleep(x/1000000.0);
+
+
+#TODO: Code the daemon that attaches to the arduino
+#		and reads the buttons and writes the LCD display
+
+
