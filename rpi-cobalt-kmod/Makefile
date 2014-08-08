@@ -5,3 +5,6 @@ all:
 
 clean:
 	make -C $(HOME)/linux M=$(PWD) clean
+
+modules_install:
+	make -C $(HOME)/linux M=$(PWD) modules_install
