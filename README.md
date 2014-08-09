@@ -12,6 +12,8 @@ The hardware you will need includes:
 - an old Cobalt RaQ case (Qube support is to follow)
 - a raspberry pi
 - an arduiono mega (or something with a good amount of GPIO pins)
+- A logic leveler for the RPi <---> Arduino Serial 
+  (if you are running a 5V Arduino, like the Mega 2560 that I have.)
 
 
 Experience to set up:
