@@ -2,11 +2,41 @@
 
 import time
 import select 
-import os, sys
+import os, sys, serial
 usleep = lambda x: time.sleep(x/1000000.0);
 
 
 #TODO: Code the daemon that attaches to the arduino
 #		and reads the buttons and writes the LCD display
 
+connected = False
+
+sPort = serial.Serial('/dev/ttyAMA0', 115200, timeout=3)
+
+sPort.write("\n");
+usleep(100000);
+conn_check = sPort.readline()
+print "Status: " + conn_check;
+if(conn_check == "~CNCT\r\n"):
+	sPort.write("~HLO\n");
+	usleep(100000);
+	conn_check = sPort.readline();
+	print "Conn Resp: " + conn_check;
+	if(conn_check == "~Connected\r\n"):
+		connected = True
+		print "Connected."
+
+if(conn_check == "~OK\r\n") :
+	connected = True; 
+
+#def parseButton(str btnLine) :
+	
+
+button_line = "";
+while(connected) :
+	button_line = sPort.readline();
+	button_line = button_line.rstrip();
+	if(button_line != "" and button_line != "1111111" ):
+		print button_line
+	sPort.write("RPi Cobalt     v. 0.1\n")
 
