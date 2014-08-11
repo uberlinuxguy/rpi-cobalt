@@ -224,13 +224,13 @@ void serialEvent() {
   // this will exit when no new characters are read.
   while(tmpChar > 0) {
   
-    if(tmpChar == '\n' || serOffRef > 32) { 
+    if(tmpChar == '\n'  || tmpChar == '\r' || serOffRef > 32) { 
       // if we get a newline, or we are larger than 32 characters, 
       // so time to reset serOffRef and if in 
       // command mode, reset to data mode.
       
       // new line at the beginning, or empty line, is a status request
-      if(tmpChar == '\n' && serOffRef == 0) {
+      if((tmpChar == '\n' || tmpChar == '\r') && serOffRef == 0) {
         // print the status back to the client.
         if(piConnected == false ) {
           Serial.println("~CNCT");
@@ -277,6 +277,10 @@ void serialEvent() {
     switch (serInpMode) {
       case SERIAL_INPUT_DATA:
         // we are in data mode, so let's just spit the character out to the LCD.
+        if(serOffRef == 15) {
+          // move to line two if we are greater than 16 chars
+          CobaltLCD.setCursor(0,1);
+        }
         CobaltLCD.print(tmpChar);
         break;
       case SERIAL_INPUT_CMND: 
