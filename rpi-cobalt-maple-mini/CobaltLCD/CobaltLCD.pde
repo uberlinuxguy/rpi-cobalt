@@ -8,11 +8,11 @@
  
  */
  
-#define LCD_EN  18
-#define BUTTON_EN 19
-#define BUTTON_TR 20
-#define LCD_RS  21
-#define LCD_RW  22
+#define LCD_EN  16
+#define BUTTON_EN 18
+#define BUTTON_TR 19
+#define LCD_RS  28
+#define LCD_RW  29
 #define COMMAND_CHAR ~
 
 // serial input mode defines
@@ -48,7 +48,7 @@ const byte lcd_char_map[6][8] = {
 };
 
 // instantiate the LCD Library with our predefined pins
-LiquidCrystal CobaltLCD(LCD_RS, LCD_RW, LCD_EN, 10, 11, 12, 13, 14, 15, 16, 17);
+LiquidCrystal CobaltLCD(LCD_RS, LCD_RW, LCD_EN, 20, 21, 22, 0, 1, 25, 26, 27);
 
 // connection tracking
 boolean piConnected = false;  // whether the string is complete
@@ -124,14 +124,28 @@ void readButtons(){
   
   // change pin mode
   int i = 0;
-  for(i=30; i<38; i++)
-    pinMode(i, INPUT);
+  for(i=20; i<28; i++){
+    if(i==23 || i == 24) {
+      if(i==23)
+        pinMode(0, INPUT);
+      else
+        pinMode(1, INPUT);   
+    } else {
+        pinMode(i, INPUT);
+    }
+  }
   
   int btnChanged=0;
   digitalWrite(BUTTON_EN, LOW);
   digitalWrite(BUTTON_TR, LOW);
   for(i=0; i<7; i++){
-    button_map[i]=digitalRead(i+31);
+    if(i==2 || i == 3) {
+      if(i==2)
+        button_map[i] = digitalRead(0);
+      else
+        button_map[i] = digitalRead(1);
+    } else
+      button_map[i]=digitalRead(i+21);
     if(button_map[i]!=button_map_prev[i]){
       btnChanged=1;
     }
@@ -149,8 +163,16 @@ void readButtons(){
   digitalWrite(BUTTON_EN, HIGH);
   digitalWrite(BUTTON_TR, HIGH);
   
-  for(i=30; i<38; i++)
-    pinMode(i, OUTPUT);
+  for(i=20; i<28; i++){
+    if(i==23 || i == 24) {
+      if(i==23)
+        pinMode(0, OUTPUT);
+      else
+        pinMode(1, OUTPUT);   
+    } else {
+        pinMode(i, OUTPUT);
+    }
+  }
    
   
 }
