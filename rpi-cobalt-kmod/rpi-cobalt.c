@@ -127,9 +127,56 @@ static void SetGPIOOutputValue(int GPIO, bool outputValue)
  *
  */
 static void ngs_work_handler(struct work_struct *w) {
+
+
+	struct rtnl_link_stats64 *netif_stats;
+
 	int ret = 0;
-	// check for eth0_dev being NULL
+	
+	// check for no eth0 device.
 	if(eth0_dev != NULL){
+		// check the link, get it from operstate
+		if(eth0_dev->operstate == IF_OPER_UP ){
+			// link is up.
+			SetGPIOOutputValue(link_led, 0);
+			// if we have an eth0, allocate some memory for the net stats
+			netif_stats = (struct rtnl_link_stats64*)kzalloc(sizeof(struct rtnl_link_stats64),GFP_KERNEL);
+			if(netif_stats == NULL ) {
+				printk(KERN_ERR "rpi-cobalt: memory allocation error.");
+			} else {
+				// TODO: Need a check here that eth0_dev didn't go away.
+				// This is hardware on the board, but who knows what could 
+				// happen.
+				dev_get_stats(eth0_dev, netif_stats);
+				// if there are stats for eth0, process them
+				if(netif_stats->rx_packets != 0){
+					// if the sum of the rx and tx packets changes since the last run
+					// turn the led on
+					unsigned long tmp_packets = netif_stats->rx_packets + netif_stats->tx_packets;
+					if(tmp_packets != net_packets) {
+						SetGPIOOutputValue(txrx_led, 0);
+						net_packets = tmp_packets;
+					} else {
+						// turn the txrx led off, no traffic moved since
+						// the last run.
+						SetGPIOOutputValue(txrx_led, 1);
+					}
+
+					// collision light works the same as the tx/rx light
+					if(netif_stats->collisions != net_collisions) {
+						SetGPIOOutputValue(col_led, 0);
+						net_collisions = netif_stats->collisions;
+					} else {
+						SetGPIOOutputValue(col_led, 1);
+					}
+				}
+			}
+		} else {
+			SetGPIOOutputValue(link_led, 1);
+			SetGPIOOutputValue(txrx_led, 1);
+			SetGPIOOutputValue(col_led, 1);
+		}
+		
 		// set the lock for the rtnl layer
 		if (rtnl_trylock()){
 			// make sure the device is runing, 
@@ -169,66 +216,19 @@ static void ngs_work_handler(struct work_struct *w) {
 static void LedRstHandler(unsigned long unused)
 {
 	
-	struct rtnl_link_stats64 *netif_stats;
 	
 	// turn off the hdd led.  It could have been turned on by the kprobe below.
     SetGPIOOutputValue(hdd_led, 1);
-
+	
 	// check for no eth0 device.
 	if(eth0_dev != NULL){
 		// check the link, get it from operstate
 		if(eth0_dev->operstate == IF_OPER_UP ){
-			// link is up.
-			SetGPIOOutputValue(link_led, 0);
-			// if we have an eth0, allocate some memory for the net stats
-			netif_stats = (struct rtnl_link_stats64*)kzalloc(sizeof(struct rtnl_link_stats64),GFP_KERNEL);
-			if(netif_stats == NULL ) {
-				printk(KERN_ERR "rpi-cobalt: memory allocation error.");
-			} else {
-				// TODO: Need a check here that eth0_dev didn't go away.
-				// This is hardware on the board, but who knows what could 
-				// happen.
-				dev_get_stats(eth0_dev, netif_stats);
-				// if there are stats for eth0, process them
-				if(netif_stats->rx_packets != 0){
-					// if the sum of the rx and tx packets changes since the last run
-					// turn the led on
-					unsigned long tmp_packets = netif_stats->rx_packets + netif_stats->tx_packets;
-					if(tmp_packets != net_packets) {
-						SetGPIOOutputValue(txrx_led, 0);
-						net_packets = tmp_packets;
-					} else {
-						// turn the txrx led off, no traffic moved since
-						// the last run.
-						SetGPIOOutputValue(txrx_led, 1);
-					}
-
-					// collision light works the same as the tx/rx light
-					if(netif_stats->collisions != net_collisions) {
-						SetGPIOOutputValue(col_led, 0);
-						net_collisions = netif_stats->collisions;
-					} else {
-						SetGPIOOutputValue(col_led, 1);
-					}
-				}
-			}
-	
-			// add link speed led update to the workqueue
-			// this is done like this because grabbing link speed
-			// requires a call to the mii interface which can block.
-			// Since the timer is an interrupt, it cannot block and 
-			// this call must be done outside the interrupt.
+			// add the work queue handler call to the work queue.	
 			if(ngs_wq) 
 				queue_delayed_work(ngs_wq, &ngs_work, 0); 
-
-		} else {
-			SetGPIOOutputValue(link_led, 1);
-			SetGPIOOutputValue(txrx_led, 1);
-			SetGPIOOutputValue(col_led, 1);
 		}
-		
-	} 
-
+	}
 
 	// re-add the timer so that we run again
     mod_timer(&s_LedRstTimer, jiffies + msecs_to_jiffies(s_LedRstPeriod));
