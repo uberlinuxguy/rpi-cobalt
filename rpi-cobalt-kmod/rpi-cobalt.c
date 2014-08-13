@@ -33,6 +33,7 @@
 #include <linux/kprobes.h>
 #include <linux/kallsyms.h>
 #include <linux/sched.h>
+#include <net/sch_generic.h>
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -53,17 +54,6 @@
 #define web_led 17 // switched positive, true is on
 
 
-// GPIO Registers struct
-struct GpioRegisters
-{
-	uint32_t GPFSEL[6];
-	uint32_t Reserved1;
-	uint32_t GPSET[2];
-	uint32_t Reserved2;
-	uint32_t GPCLR[2];
-};
-
-struct GpioRegisters *s_pGpioRegisters;
 
 // used to save a pointer to eth0.
 static struct net_device *eth0_dev;
@@ -85,24 +75,10 @@ static struct timer_list s_LedRstTimer;
 // set the timer to run every 10 micro(?) seconds
 static int s_LedRstPeriod = 10;
 
+// use a delay for message output
+static int msg_delay = 0;
 
-/*! SetGPIOFunction - Used to set the GPIO's direction
- *
- * \param GPIO the BOARD GPIO id
- * \param functionCode sets either INPUT(0) or OUTPUT(0b001)
- *
- */
-static void SetGPIOFunction(int GPIO, int functionCode)
-{
 
-	int registerIndex = GPIO / 10;
-	int bit = (GPIO % 10) * 3;
-
-	unsigned oldValue = s_pGpioRegisters->GPFSEL[registerIndex];
-	unsigned mask = 0b111 << bit;
-
-	s_pGpioRegisters->GPFSEL[registerIndex] = (oldValue & ~mask) | ((functionCode << bit) & mask);
-}
 
 /*! SetGPIOOutputValue - Used to set the output value of a GPIO pin
  *
@@ -113,11 +89,8 @@ static void SetGPIOFunction(int GPIO, int functionCode)
 
 static void SetGPIOOutputValue(int GPIO, bool outputValue)
 {
-
-	if (outputValue)
-		s_pGpioRegisters->GPSET[GPIO / 32] = (1 << (GPIO % 32));
-	else
-		s_pGpioRegisters->GPCLR[GPIO / 32] = (1 << (GPIO % 32));
+	
+		gpio_set_value(GPIO, outputValue);
 }
 
 
@@ -135,8 +108,8 @@ static void ngs_work_handler(struct work_struct *w) {
 	
 	// check for no eth0 device.
 	if(eth0_dev != NULL){
-		// check the link, get it from operstate
-		if(eth0_dev->operstate == IF_OPER_UP ){
+		// check the interface has carrier, is up, and the txqueues are changing.
+		if(netif_running(eth0_dev) && netif_carrier_ok(eth0_dev)){
 			// link is up.
 			SetGPIOOutputValue(link_led, 0);
 			// if we have an eth0, allocate some memory for the net stats
@@ -203,9 +176,9 @@ static void ngs_work_handler(struct work_struct *w) {
 				}
 
 			}
+			// release the rtnl lock
+			rtnl_unlock();
 		}
-		// release the rtnl lock
-		rtnl_unlock();
 	}
 	
 }
@@ -223,15 +196,9 @@ static void LedRstHandler(unsigned long unused)
 	// turn off the hdd led.  It could have been turned on by the kprobe below.
     SetGPIOOutputValue(hdd_led, 1);
 	
-	// check for no eth0 device.
-	if(eth0_dev != NULL){
-		// check the link, get it from operstate
-		if(eth0_dev->operstate == IF_OPER_UP ){
-			// add the work queue handler call to the work queue.	
-			if(ngs_wq) 
-				queue_delayed_work(ngs_wq, &ngs_work, 0); 
-		}
-	}
+	// add the work queue handler call to the work queue.	
+	if(ngs_wq) 
+		queue_delayed_work(ngs_wq, &ngs_work, 0); 
 
 	// re-add the timer so that we run again
     mod_timer(&s_LedRstTimer, jiffies + msecs_to_jiffies(s_LedRstPeriod));
@@ -316,20 +283,30 @@ static int __init rpicobaltinit(void)
 	struct net_device *dev;
 
 	// setup all the leds as output
-	s_pGpioRegisters = (struct GpioRegisters *)__io_address(GPIO_BASE);
-	SetGPIOFunction(hdd_led, 0b001);	//Configure the pin as output
-	SetGPIOFunction(txrx_led, 0b001);	//Configure the pin as output
-	SetGPIOFunction(col_led, 0b001);	//Configure the pin as output
-	SetGPIOFunction(link_led, 0b001);	//Configure the pin as output
-	SetGPIOFunction(speed_led, 0b001);	//Configure the pin as output
+	if(gpio_request(hdd_led, "hdd"))
+		return -EBUSY;
 
-	// turn them all off.
-	SetGPIOOutputValue(hdd_led, 1);	
-	SetGPIOOutputValue(txrx_led, 1);	
-	SetGPIOOutputValue(col_led, 1);	
-	SetGPIOOutputValue(link_led, 1);	
-	SetGPIOOutputValue(speed_led, 1);	
-	SetGPIOOutputValue(web_led, 0);	
+	if(gpio_request(txrx_led, "txrx"))
+		return -EBUSY;
+
+	if(gpio_request(col_led, "col"))
+		return -EBUSY;
+
+	if(gpio_request(link_led, "link"))
+		return -EBUSY;
+
+	if(gpio_request(speed_led, "speed"))
+		return -EBUSY;
+
+	if(gpio_request(web_led, "web"))
+		return -EBUSY;
+
+	gpio_direction_output(hdd_led, 1);
+	gpio_direction_output(txrx_led, 1);
+	gpio_direction_output(col_led, 1);
+	gpio_direction_output(link_led, 1);
+	gpio_direction_output(speed_led, 1);
+	gpio_direction_output(web_led, 0);
 
 
 	// now look for eth0 device
@@ -383,11 +360,19 @@ static void __exit rpicobaltexit(void)
 	}
 
 	// flip all the LEDs back to input.
-	SetGPIOFunction(hdd_led, 0);	//Configure the pin as input
-	SetGPIOFunction(txrx_led, 0);	//Configure the pin as input
-	SetGPIOFunction(col_led, 0);	//Configure the pin as input
-	SetGPIOFunction(link_led, 0);	//Configure the pin as input
-	SetGPIOFunction(speed_led, 0);	//Configure the pin as input
+	gpio_direction_input(hdd_led);
+	gpio_direction_input(txrx_led);
+	gpio_direction_input(col_led);
+	gpio_direction_input(link_led);
+	gpio_direction_input(speed_led);
+	gpio_direction_input(web_led);
+
+	gpio_free(hdd_led);
+	gpio_free(txrx_led);
+	gpio_free(col_led);
+	gpio_free(link_led);
+	gpio_free(speed_led);
+	gpio_free(web_led);
 
 	printk(KERN_INFO "rpi-cobalt: Module Unloaded\n");
 }
