@@ -170,6 +170,9 @@ static void ngs_work_handler(struct work_struct *w) {
 						SetGPIOOutputValue(col_led, 1);
 					}
 				}
+				// if we are in here, netif_stats was not null and chances are good
+				// it was valid mem.  We should free it or the module will eat up ram
+				kfree(netif_stats);
 			}
 		} else {
 			SetGPIOOutputValue(link_led, 1);
