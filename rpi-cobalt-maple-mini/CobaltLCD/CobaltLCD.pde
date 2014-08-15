@@ -15,6 +15,12 @@
 #define LCD_RW  29
 #define COMMAND_CHAR ~
 
+#define SCB_AIRCR ((volatile uint32*) (0xE000ED00 + 0x0C))
+#define SCB_AIRCR_SYSRESETREQ (1 << 2)
+#define SCB_AIRCR_RESET ((0x05FA0000) | SCB_AIRCR_SYSRESETREQ)
+
+
+
 // serial input mode defines
 #define SERIAL_INPUT_DATA 0
 #define SERIAL_INPUT_CMND 1
@@ -213,7 +219,32 @@ void checkSerCmd(){
     }
     return;
   }
-  
+  if(!strncmp(serBuff, "~DIS", 4)) {
+    // client requested disconnect.
+    piConnected = false;
+    CobaltLCD.home();
+    CobaltLCD.clear();
+    CobaltLCD.home();
+    CobaltLCD.print("PiCobalt");
+    CobaltLCD.setCursor(0,1);
+    CobaltLCD.print("Disconnected");
+    
+    // print the top 3 parts of the icon.    
+    CobaltLCD.setCursor(13,0);
+    CobaltLCD.write(byte(0));
+    CobaltLCD.write(byte(1));
+    CobaltLCD.write(byte(2));
+    
+    // print the bottom 3 parts of the icon.
+    CobaltLCD.setCursor(13,1);
+    CobaltLCD.write(byte(3));
+    CobaltLCD.write(byte(4));
+    CobaltLCD.write(byte(5));
+    
+    delay(5);
+    *(SCB_AIRCR) = SCB_AIRCR_RESET;
+    return;
+  }
   Serial2.println("~ERROR: 402 Unrecognized Command.");
   
 }
@@ -257,9 +288,9 @@ void serialEvent() {
   tmpChar = serialRead();
   
   // this will exit when no new characters are read.
-  while(tmpChar > 0) {
-  
-    if(tmpChar == '\n'  || tmpChar == '\r' || serOffRef > 32) { 
+  while(tmpChar > 0 && tmpChar < 128) {
+    //Serial2.println(serOffRef);
+    if(tmpChar == '\n'  || tmpChar == '\r' || serOffRef > 31) { 
       // if we get a newline, or we are larger than 32 characters, 
       // so time to reset serOffRef and if in 
       // command mode, reset to data mode.
@@ -279,6 +310,10 @@ void serialEvent() {
       if(serInpMode == SERIAL_INPUT_CMND) {
         // Check the command, callout?
         checkSerCmd();
+        // clear the serBuff
+        int i=0;
+        for(i=0; i<32; i++)
+          serBuff[i]='\0';
         serInpMode = SERIAL_INPUT_DATA;
         // all following characters will be LCD Characters.
       }
@@ -294,7 +329,7 @@ void serialEvent() {
       serInpMode = SERIAL_INPUT_CMND;
     }
     
-    if((serOffRef == 0 && serInpMode == SERIAL_INPUT_DATA)) {
+    if((serOffRef == 0 && serInpMode == SERIAL_INPUT_DATA && piConnected)) {
       // first character of a new display in data mode, not a new line, 
       // clear the LCD
       CobaltLCD.home();
@@ -303,7 +338,7 @@ void serialEvent() {
     }
     
     // a read could have happened above, so let's double check we have a character
-    if(tmpChar <= 0) {
+    if(tmpChar <= 0 || tmpChar > 127) {
       // nope, leave the loop and exit the function
       break;
     }
@@ -311,12 +346,15 @@ void serialEvent() {
     // ok we have a character, so let's process it.
     switch (serInpMode) {
       case SERIAL_INPUT_DATA:
-        // we are in data mode, so let's just spit the character out to the LCD.
-        if(serOffRef == 15) {
-          // move to line two if we are greater than 16 chars
-          CobaltLCD.setCursor(0,1);
+        // we are in data mode, so let's just spit the character out to the LCD
+        // but only if the pi is connected.
+        if(piConnected){
+          if(serOffRef == 16) {
+            // move to line two if we are greater than 16 chars
+            CobaltLCD.setCursor(0,1);
+          }
+          CobaltLCD.print(tmpChar);
         }
-        CobaltLCD.print(tmpChar);
         break;
       case SERIAL_INPUT_CMND: 
         // we are in command mode, so add the character to the buffer.
