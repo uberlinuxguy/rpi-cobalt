@@ -1,0 +1,13 @@
+*/lib/*/*.pyc
+rpi-cobalt-kmod/*.ko
+rpi-cobalt-kmod/*.cmd
+rpi-cobalt-kmod/.tmp_versions
+rpi-cobalt-kmod/*.o
+rpi-cobalt-kmod/*.mod.c
+rpi-cobalt-kmod/*.mod.o
+rpi-cobalt-kmod/*.symvers
+rpi-cobalt-kmod/*.order
+**/*.swp
+**/*.bak
+**/*.sav
+

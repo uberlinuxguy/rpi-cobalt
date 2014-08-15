@@ -1,0 +1,5 @@
+#!/bin/bash
+MY_HOSTNAME=`hostname 2>/dev/null`
+MY_IP=`/sbin/ifconfig eth0 | /bin/grep "inet addr" | /usr/bin/awk '{print $2}' | cut -d: -f2 2>/dev/null`
+
+printf "%16s%16s" "$MY_HOSTNAME  " "$MY_IP  "

@@ -1,0 +1,5 @@
+#!/bin/bash
+# Show Uptime
+MY_RETSTR=`/usr/bin/uptime | awk '{print $3}' | sed -e 's/,//'`
+printf "%-16s%-16s" "Uptime: " $MY_RETSTR
+

@@ -1,0 +1,123 @@
+#!/usr/bin/python
+
+import time
+import select 
+import os, sys, serial, subprocess
+usleep = lambda x: time.sleep(x/1000000.0);
+
+
+button_map = ["reset","left","up","down","right","enter","select"];
+button_val = ['1','1','1','1','1','1','1']
+
+button_inMenu = False;
+
+
+#TODO: Code the daemon that attaches to the arduino
+#		and reads the buttons and writes the LCD display
+
+connected = False
+
+
+# define a class to handle the buttons, menu, and LCD
+# writes.
+# TODO: Split this out to a python module?  Includable
+# by any scripts that run menu code?
+
+class RPiCobalt:
+	def resetPress():
+		#default resetPress Handler
+		return 0;
+	def resetRelease():
+		#default resetRelease handler
+		return 0;
+	def upPress():
+		#default resetPress Handler
+		return 0;
+	def upRelease():
+		#default resetRelease handler
+		return 0;
+	def downPress():
+		#default resetPress Handler
+		return 0;
+	def downRelease():
+		#default resetRelease handler
+		return 0;
+	def leftPress():
+		#default resetPress Handler
+		return 0;
+	def leftRelease():
+		#default resetRelease handler
+		return 0;
+	def rightPress():
+		#default resetPress Handler
+		return 0;
+	def rightRelease():
+		#default resetRelease handler
+		return 0;
+	def selectPress():
+		#default resetPress Handler
+		return 0;
+	def selectRelease():
+		#default resetRelease handler
+		return 0;
+	def enterPress():
+		#default resetPress Handler
+		return 0;
+	def enterRelease():
+		#default resetRelease handler
+		return 0;
+
+	
+
+
+
+
+sPort = serial.Serial('/dev/ttyAMA0', 115200, timeout=3)
+
+sPort.write("\n");
+usleep(1000000);
+conn_check = sPort.readline()
+conn_check = conn_check.rstrip()
+print "Status: " + conn_check;
+if(conn_check == "~CNCT"):
+	sPort.write("~HLO\n");
+	usleep(1000000);
+	conn_check = sPort.readline();
+	conn_check = conn_check.rstrip()
+	print "Conn Resp: " + conn_check;
+	if(conn_check == "~Connected"):
+		connected = True
+		print "Connected."
+
+if(conn_check == "~OK") :
+	connected = True; 
+
+def parseButton(btnLine) :
+	tmpBtnVal = list(btnLine);
+	btnCounter = 0;
+	for btn in tmpBtnVal:
+		if(btn == '0') :
+			print "Button Press: " + button_map[btnCounter];
+			button_val[btnCounter] = btn
+		else :
+			if(button_val[btnCounter] != btn):
+				print "Button Release: " + button_map[btnCounter];
+				button_val[btnCounter] = btn
+		btnCounter += 1
+
+
+button_line = "";
+while(connected) :
+	button_line = sPort.readline();
+	if(button_line != "" ):
+		if(button_line[0] != "~") :
+			button_line = button_line.rstrip();
+			parseButton(button_line)
+
+	statusMsg = subprocess.check_output("./status")
+	statusMsg = statusMsg.rstrip();
+	if(statusMsg != "") : 
+		sPort.write(statusMsg + "\n")
+	else: 
+		sPort.write("RPi Cobalt      v. 0.1\n")
+
