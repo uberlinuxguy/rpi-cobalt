@@ -11,9 +11,8 @@ The hardware you will need includes:
 
 - an old Cobalt RaQ case (Qube support is to follow)
 - a raspberry pi
-- an arduiono mega (or something with a good amount of GPIO pins)
-- A logic leveler for the RPi <---> Arduino Serial 
-  (if you are running a 5V Arduino, like the Mega 2560 that I have.)
+- a maple mini (or something with a good amount of GPIO pins)
+- A logic leveler if you are running a 5V logic controller, the maple mini gets around this requirement
 
 
 Experience to set up:
@@ -25,6 +24,6 @@ Experience to set up:
 
 For the more advanced amoung you, if you want to make your own interface 
 boards, you can probably do that too.  I plan on making one for the 
-Cobalt Front Panel Cable, Arduino and RPi once I have all the software,
+Cobalt Front Panel Cable, Maple Mini and RPi once I have all the software,
 cabling, and kernel stuff sorted out.  A board layout may show up in this 
 repository once it's ready.
