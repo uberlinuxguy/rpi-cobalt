@@ -133,7 +133,7 @@ class rpiDaemonBtns(RpiCobaltButtons):
 
 def signal_handler(signal, frame):
 	rclcd.disconnect()
-	print('You pressed Ctrl+C!')
+	print('LCD Daemon Exit.')
 	sys.exit(0)
 
 pretend = False
@@ -168,6 +168,7 @@ rclcd.connect()
 time.sleep(1)
 counter=0
 button_line = "";
+menuTimer=0
 while(rclcd.connected) :
 	
 	# button read from the LCD lib
@@ -177,8 +178,12 @@ while(rclcd.connected) :
 		sys.stdout.write(tmpFuncStr)
 		#call the fuction returned from rcbtn.parseButtons()
 		rcbtn.buttonAction(tmpFuncStr)
+		menuTimer=time.time()
 	if(rcbtn.menuMode):
-		rcbtn.displayMenuItem(rclcd)	
+		rcbtn.displayMenuItem(rclcd)
+		if(time.time() - menuTimer > 30):
+			rcbtn.exitMenuMode()
+			menuTimer=0
 	else:
 		#check for menu mode change.
 		if(rcbtn.buttonTimer > 0) :
@@ -187,6 +192,7 @@ while(rclcd.connected) :
 			if((tmpTime - rcbtn.buttonTimer) > 3):
 				# enter menu mode if button is held longer than 3 seconds
 				rcbtn.enterMenuMode()
+				menuTimer=time.time()
 		if(not rcbtn.menuMode):
 			statusMsg = subprocess.check_output("./status")
 			statusMsg = statusMsg.rstrip();

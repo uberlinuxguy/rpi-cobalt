@@ -31,16 +31,13 @@ class RpiCobaltLCD:
 			self.sPort.write("\n")
 			usleep(1000000)
 			conn_check = self.sPort.readline().rstrip()
-			print "Status: " + conn_check
 			if(conn_check == "~CNCT"):
 				self.sPort.write("~HLO\n");
 				usleep(1000000)
 				conn_check = self.sPort.readline().rstrip()
 				if(conn_check == "~Connected"):
 					self.connected = True
-					print "Connected."
 			if(conn_check == "~OK") :
-				print "Connected." 
 				self.connected = True
 	def disconnect(self):
 		if(self.pretend) :
@@ -50,6 +47,10 @@ class RpiCobaltLCD:
 			self.sPort.write("~DIS\n")
 			usleep(1000000)
 			conn_reply = self.sPort.readline()
+	def close(self):
+		if(self.pretend) :
+			self.connected = False
+			termios.tcsetattr(self.termfd, termios.TCSADRAIN, self.termfd_old)
 
 	def write(self, outstr):
 		self.home()
@@ -66,11 +67,30 @@ class RpiCobaltLCD:
 			sys.stdout.write(lcdout)
 		else:
 			self.sPort.write(outstr.rstrip() + "\n")
-			sys.stdout.write("\n\r")
-			sys.stdout.write("\033[1A\r")
+			#sys.stdout.write("\n\r")
+			#sys.stdout.write("\033[1A\r")
 	def home(self):
 		if(self.pretend):
 			sys.stdout.write("\033[3A\r|")
+
+	def authKey(self):
+		self.write("Please enter    secret sequence.")
+		tmpKeyLine=""
+		tmpKeyIn=""
+		while(tmpKeyIn != "e"):
+			# read in the keys pressed.
+			keymap_in=self.readButtons();
+			if(keymap_in!=""): 
+				tmpCounter=0
+				for key in keymap_in:
+					if(key=="0"):
+						tmpKeyIn=self.buttonKeyMap[tmpCounter]
+						tmpKeyLine += tmpKeyIn
+						break
+					tmpCounter +=1
+		return tmpKeyLine
+						
+
 
 	def readButtons(self):
 		if(self.pretend):
