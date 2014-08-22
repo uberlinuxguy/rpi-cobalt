@@ -27,3 +27,6 @@ boards, you can probably do that too.  I plan on making one for the
 Cobalt Front Panel Cable, Maple Mini and RPi once I have all the software,
 cabling, and kernel stuff sorted out.  A board layout may show up in this 
 repository once it's ready.
+
+
+If you are looking for LCD Board or Front Panel Board pinouts for the Cobalt Qube or Cobalt RaQ, check the docs/ directory.
