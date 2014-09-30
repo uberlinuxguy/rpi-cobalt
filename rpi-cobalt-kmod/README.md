@@ -22,27 +22,27 @@ Once you have the latest kernel sources, you are ready to begin.
 ###Building
 1. Grab a copy of the latest rpi-cobalt repository
 ```bash
-# git clone https://github.com/uberlinuxguy/rpi-cobalt
+ git clone https://github.com/uberlinuxguy/rpi-cobalt
 ```
 2. Go into the rpi-cobalt-kmod directory
 ```bash
-# cd rpi-cobalt-kmod/
+ cd rpi-cobalt-kmod/
 ```
 3. Run make to build the kernel module.
 ```bash
-# make
+ make
 ```
 4. Run make modules_install to install the kernel module.
 ```bash
-# sudo make modules_install
+ sudo make modules_install
 ```
 5. Run depmod to rebuild the module deps.
 ```bash
-# sudo depmod -a
+ sudo depmod -a
 ```
 6. Attempt to load the module
 ```bash
-# sudo modprobe rpi-cobalt
+ sudo modprobe rpi-cobalt
 ```
 
 If all goes well, you should not get any errors and if your circuit is wired right, you should see der blinken lights on your RaQ.
