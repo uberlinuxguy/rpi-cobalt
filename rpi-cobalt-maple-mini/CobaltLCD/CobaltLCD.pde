@@ -13,6 +13,7 @@
 #define BUTTON_TR 19
 #define LCD_RS  28
 #define LCD_RW  29
+#define FAN_PWM  15
 #define COMMAND_CHAR ~
 
 #define SCB_AIRCR ((volatile uint32*) (0xE000ED00 + 0x0C))
@@ -38,6 +39,7 @@ char serBuff[32];
 #include <LiquidCrystal.h>
 #include <string.h>
 #include <stdio.h>
+//#include <stdlib.h>
 #include <ctype.h>
 //#include <avr/pgmspace.h>
 
@@ -61,10 +63,22 @@ boolean piConnected = false;  // whether the string is complete
 
 char portBuffers[3];
 
+
+
+uint32 atouint(char* t) {
+    uint32 val = 0;
+    while (*t != '\O' && isdigit(*t)) {
+        val = val*10 + (*t - '0');
+        ++t;
+    }
+    return val;
+}
+
 void setup() {
   // set up the button controller outputs
   pinMode(BUTTON_EN, OUTPUT);
   pinMode(BUTTON_TR, OUTPUT);  
+  pinMode(FAN_PWM,  PWM);
   digitalWrite(BUTTON_EN, HIGH);
   digitalWrite(BUTTON_TR, HIGH);
   
@@ -114,7 +128,7 @@ void loop() {
   if(Serial2.available() > 0 ) {
     serialEvent();
   }
-  // only read the buttons if we are conncted.
+  // only read the buttons if we are conncted. 
   if(piConnected) {
     readButtons();
   } 
@@ -219,6 +233,50 @@ void checkSerCmd(){
     }
     return;
   }
+  if(!strncmp(serBuff, "~CUR", 4)) {
+    CobaltLCD.cursor();
+    return;
+  }
+  if(!strncmp(serBuff, "~NOCUR", 6)){
+    CobaltLCD.noCursor();    
+    return;
+  }
+  
+  if(!strncmp(serBuff, "~SETCUR", 7)){
+    // set the cursor to a particular X,Y posisition.
+    //get the X,Y position 
+    int i=0;
+    // start after the ~cur in the string.
+    for(i=5; i< strlen(serBuff); i++){
+      if(serBuff[i] == ',')
+        break;      
+    }
+    
+    if(i==strlen(serBuff)){
+       // we didn't find a comma, so the user did not specify the position right.
+       Serial2.println("~ERROR:  405 Cursor location error.  Cursor location not set.");
+       return;
+    }
+  
+    // if we found a comma, let's get the two values.
+    char tmpVal[32];
+    int xval=0, yval=0;
+    serBuff[i]='\0'; // set the comma to a null char.
+    xval = atouint(&serBuff[5]);
+    yval = atouint(&serBuff[i+1]);
+    if(yval == 0 || yval == 1){
+      // looks good for x, check y
+      if(xval>=0 && xval<17){
+       /*Serial2.print("~Cursor set: ");
+       Serial2.print(xval);
+       Serial2.print(", ");
+       Serial2.println(yval);*/
+       CobaltLCD.setCursor(xval,yval);
+      }
+    }
+    return;
+  }
+  
   if(!strncmp(serBuff, "~DIS", 4)) {
     // client requested disconnect.
     piConnected = false;
@@ -243,6 +301,16 @@ void checkSerCmd(){
     
     delay(5);
     *(SCB_AIRCR) = SCB_AIRCR_RESET;
+    return;
+  }
+  
+  if(!strncmp(serBuff, "~SETFAN", 7)){
+    int fanval = 0;
+    Serial2.println(&serBuff[8]);
+    fanval = atouint(&serBuff[8]);
+    Serial2.print("~Setting FAN to ");
+    Serial2.println(fanval);
+    pwmWrite(FAN_PWM, fanval * 655);
     return;
   }
   Serial2.println("~ERROR: 402 Unrecognized Command.");
