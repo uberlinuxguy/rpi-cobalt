@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <mach/platform.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/io.h>
